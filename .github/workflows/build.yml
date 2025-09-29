@@ -13,7 +13,7 @@ jobs:
   build_android:
     runs-on: ubuntu-latest
     
-    # Set environment variables for Buildozer (These are used to configure the buildozer.spec)
+    # Set environment variables for Buildozer
     env:
       PACKAGE_NAME: com.doubtcure.app
       APP_TITLE: Doubtcure
@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 2. Create and Configure buildozer.spec
-        # We still need to configure the spec file before building
+        # This step configures all your app settings, requirements, and permissions
         run: |
           # Initialize buildozer.spec
           buildozer init || true
@@ -33,11 +33,10 @@ jobs:
           sed -i 's/^package\.name = .*/package.name = '${{ env.PACKAGE_NAME }}'/' buildozer.spec
           sed -i 's/^package\.domain = .*/package.domain = yourcompany.com/' buildozer.spec
           
-          # Requirements based on your doubtly.py imports
-          # IMPORTANT: Include 'android' to enable the necessary Android tools.
+          # Requirements based on your doubtly.py imports, plus 'android'
           sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,plyer,requests,Pillow,pytesseract,sqlite3,android/' buildozer.spec
           
-          # Set API levels and NDK (The action will use these)
+          # Set API levels and NDK
           sed -i 's/^android\.minapi = .*/android.minapi = 24/' buildozer.spec
           sed -i 's/^android\.api = .*/android.api = 33/' buildozer.spec
           sed -i 's/#android\.ndk = .*/android.ndk = 25b/' buildozer.spec
@@ -49,15 +48,15 @@ jobs:
           sed -i 's/^source\.include_exts = .*/source.include_exts = py,png,jpg,kv,atlas,xml,json,db/' buildozer.spec
           sed -i 's/^main\.py = .*/main.py = doubtly.py/' buildozer.spec
           
-      - name: 3. Build APK using Buildozer Action 🚀 (Replaces 4 steps)
-        # This step uses a pre-configured action that handles all SDK/NDK dependencies
-        uses: alirezadir/buildozer-action@v3
+      - name: 3. Build APK using Buildozer Action (FIXED) 🚀
+        # *** FIX: Using the maintained m-tewes/buildozer-action instead ***
+        uses: m-tewes/buildozer-action@v1 
         with:
           # Tell the action to run the Android debug build
           command: buildozer android debug
           
       - name: 4. Upload APK as Artifact
-        # Saves the APK file to the GitHub Actions run page (path is relative to the buildozer workdir)
+        # Saves the APK file to the GitHub Actions run page
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_TITLE }}_apk
@@ -65,6 +64,7 @@ jobs:
 
       - name: 5. Get APK name for Release
         id: get_apk_name
+        # Finds the specific filename of the generated APK
         run: echo "APK_FILE=$(basename $(ls bin/*.apk))" >> $GITHUB_OUTPUT
         
       - name: 6. Create GitHub Release with APK
@@ -76,3 +76,4 @@ jobs:
           name: Release ${{ github.ref_name }} Build
           files: bin/${{ steps.get_apk_name.outputs.APK_FILE }}
           draft: true
+          
