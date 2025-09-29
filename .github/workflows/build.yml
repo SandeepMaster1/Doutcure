@@ -14,13 +14,13 @@ jobs:
     # Use Ubuntu for the Buildozer build process
     runs-on: ubuntu-latest
     
-    # Optional: Set environment variables for Buildozer
+    # Set environment variables for Buildozer
     env:
-      # Change this to your app's package name
-      PACKAGE_NAME: com.yourcompany.doubtcure
-      # Change this to your desired APK name
+      # Package name
+      PACKAGE_NAME: com.doubtcure.app
+      # App name
       APP_TITLE: Doubtcure
-      # Use Python 3.9 as it's often compatible with Kivy/Buildozer
+      # Python 3.9 is a common, stable version for Kivy builds
       PYTHON_VERSION: 3.9
       
     steps:
@@ -36,48 +36,61 @@ jobs:
         # Buildozer and its dependencies
         run: pip install buildozer cython
 
-      - name: 4. Create and Configure buildozer.spec
-        # This step is crucial. It ensures the buildozer.spec file exists 
-        # and configures key properties needed for the build based on your request.
+      - name: 4. Create and Configure buildozer.spec (Including NDK)
+        # This step uses 'sed' to ensure the buildozer.spec file has the correct settings
         run: |
-          # Initialize buildozer.spec if it doesn't exist
+          # Initialize buildozer.spec (silently ignore error if it already exists)
           buildozer init || true
           
-          # Update key settings in buildozer.spec (mandatory for a good build)
+          # Update key settings
           sed -i 's/^title = .*/title = '${{ env.APP_TITLE }}'/' buildozer.spec
           sed -i 's/^package\.name = .*/package.name = '${{ env.PACKAGE_NAME }}'/' buildozer.spec
           sed -i 's/^package\.domain = .*/package.domain = yourcompany.com/' buildozer.spec
+          
+          # Requirements based on your doubtly.py imports
           sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,plyer,requests,Pillow,pytesseract,sqlite3/' buildozer.spec
-          # Set the Android SDK API level
+          
+          # Set the minimum Android API level
+          sed -i 's/^android\.minapi = .*/android.minapi = 24/' buildozer.spec
+          # Set the target Android SDK API level
           sed -i 's/^android\.api = .*/android.api = 33/' buildozer.spec
-          # Permissions required by your app
+          
+          # 👇👇👇 EXPLICIT NDK CONFIGURATION ADDED HERE 👇👇👇
+          # Set a specific NDK version (e.g., 25b is often stable with API 33)
+          sed -i 's/#android\.ndk = .*/android.ndk = 25b/' buildozer.spec
+          # If you also wanted to set the SDK manually (usually not needed):
+          # sed -i 's/#android\.sdk = .*/android.sdk = 25/' buildozer.spec
+          # 👆👆👆 END OF NDK CONFIGURATION 👆👆👆
+          
+          # Permissions: internet, camera, gallery (storage), voice (mic)
           sed -i 's/#android\.permissions =/android.permissions = INTERNET,CAMERA,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO/' buildozer.spec
           
-          # Print spec file to verify changes (optional)
-          cat buildozer.spec
+          # Rename app's main file to doubtly.py
+          sed -i 's/^source\.include_exts = .*/source.include_exts = py,png,jpg,kv,atlas,xml,json,db/' buildozer.spec
+          sed -i 's/^main\.py = .*/main.py = doubtly.py/' buildozer.spec
 
-      - name: 5. Build Debug APK (Takes a long time on first run)
-        # The 'android debug' command will download NDK, SDK, etc., which is time-consuming.
+      - name: 5. Build Debug APK
+        # This is the command that builds the Android package
         run: buildozer android debug
 
       - name: 6. Upload APK as Artifact
+        # Saves the APK file to the GitHub Actions run page
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_TITLE }}_apk
-          # The resulting APK is typically found here
           path: bin/*.apk
 
-      - name: 7. Get APK name for Release (Optional but helpful)
+      - name: 7. Get APK name for Release
         id: get_apk_name
-        # Find the generated APK file name
         run: echo "APK_FILE=$(basename $(ls bin/*.apk))" >> $GITHUB_OUTPUT
         
       - name: 8. Create GitHub Release with APK
-        # This step creates a draft release on GitHub with the built APK attached.
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only create release on main branch push
+        # Creates a draft release on GitHub for easy download
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: release-${{ github.sha }}
-          name: Release ${{ github.ref_name }} Build ${{ github.sha }}
+          name: Release ${{ github.ref_name }} Build
           files: bin/${{ steps.get_apk_name.outputs.APK_FILE }}
-          draft: true # Keep it as a draft until you publish it manually
+          draft: true
+          
