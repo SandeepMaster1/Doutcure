@@ -8,12 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
-      ANDROID_NDK_ROOT: ${{ github.workspace }}/android-ndk
-      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:\
-${{ github.workspace }}/android-sdk/platform-tools:\
-${{ github.workspace }}/android-sdk/build-tools/33.0.2:$PATH
 
     steps:
       - name: Checkout repository
@@ -27,19 +21,17 @@ ${{ github.workspace }}/android-sdk/build-tools/33.0.2:$PATH
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            build-essential git zip unzip openjdk-17-jdk python3-pip \
-            libffi-dev libssl-dev libsqlite3-dev zlib1g-dev libncurses5-dev \
-            libgdbm-dev libnss3-dev libreadline-dev libbz2-dev wget curl
+          sudo apt install -y build-essential git zip unzip openjdk-17-jdk python3-pip libffi-dev libssl-dev libsqlite3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libreadline-dev libbz2-dev wget curl
 
       - name: Install Buildozer & Cython
         run: |
-          python3 -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install cython==0.29.36
           pip install buildozer==2.1.0
 
       - name: Install Android SDK Command Line Tools
         run: |
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
           cd $ANDROID_SDK_ROOT/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
@@ -50,7 +42,7 @@ ${{ github.workspace }}/android-sdk/build-tools/33.0.2:$PATH
 
       - name: Create buildozer.spec file
         run: |
-          cat << EOF > buildozer.spec
+          cat > buildozer.spec << 'EOF'
 [app]
 title = DoubtCure
 package.name = doubtcure
@@ -58,9 +50,9 @@ package.domain = org.doubtcure
 version = 0.1
 source.dir = .
 source.include_exts = py,kv,png,jpg,atlas
-source.main = Doubtly.py
+source.main = doubtly.py
 
-requirements = kivy==2.3.1, kivymd==1.1.1, pillow, plyer, pytesseract, requests
+requirements = kivy==2.3.1, kivymd==1.1.1, pillow, plyer, pytesseract, requests, sqlite3
 android.permissions = INTERNET, CAMERA, RECORD_AUDIO, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 
 [buildozer]
@@ -70,7 +62,7 @@ EOF
 
       - name: Build APK
         run: |
-          buildozer -v android debug --sdk $ANDROID_SDK_ROOT --ndk $ANDROID_NDK_ROOT
+          buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
