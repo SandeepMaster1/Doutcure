@@ -1,79 +1,51 @@
-name: Build Kivy App (APK)
+name: Build DoubtCure APK
 
 on:
   push:
-    branches:
-      - main  # or 'master', the branch you push to
-  pull_request:
-    branches:
-      - main # or 'master'
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build_android:
-    runs-on: ubuntu-latest
-    
-    # Set environment variables for Buildozer
-    env:
-      PACKAGE_NAME: com.doubtcure.app
-      APP_TITLE: Doubtcure
-      
+  build:
+    runs-on: ubuntu-20.04
     steps:
-      - name: 1. Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: 2. Create and Configure buildozer.spec
-        # This step configures all your app settings, requirements, and permissions
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Upgrade pip & Install dependencies
         run: |
-          # Initialize buildozer.spec
-          buildozer init || true
-          
-          # Update key settings
-          sed -i 's/^title = .*/title = '${{ env.APP_TITLE }}'/' buildozer.spec
-          sed -i 's/^package\.name = .*/package.name = '${{ env.PACKAGE_NAME }}'/' buildozer.spec
-          sed -i 's/^package\.domain = .*/package.domain = yourcompany.com/' buildozer.spec
-          
-          # Requirements based on your doubtly.py imports, plus 'android'
-          sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,plyer,requests,Pillow,pytesseract,sqlite3,android/' buildozer.spec
-          
-          # Set API levels and NDK
-          sed -i 's/^android\.minapi = .*/android.minapi = 24/' buildozer.spec
-          sed -i 's/^android\.api = .*/android.api = 33/' buildozer.spec
-          sed -i 's/#android\.ndk = .*/android.ndk = 25b/' buildozer.spec
-          
-          # Permissions: internet, camera, gallery (storage), voice (mic)
-          sed -i 's/#android\.permissions =/android.permissions = INTERNET,CAMERA,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO/' buildozer.spec
-          
-          # Rename app's main file to doubtly.py
-          sed -i 's/^source\.include_exts = .*/source.include_exts = py,png,jpg,kv,atlas,xml,json,db/' buildozer.spec
-          sed -i 's/^main\.py = .*/main.py = doubtly.py/' buildozer.spec
-          
-      - name: 3. Build APK using Buildozer Action (FIXED) 🚀
-        # *** FIX: Using the maintained m-tewes/buildozer-action instead ***
-        uses: m-tewes/buildozer-action@v1 
-        with:
-          # Tell the action to run the Android debug build
-          command: buildozer android debug
-          
-      - name: 4. Upload APK as Artifact
-        # Saves the APK file to the GitHub Actions run page
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APP_TITLE }}_apk
-          path: bin/*.apk
+          python -m pip install --upgrade pip
+          pip install cython
 
-      - name: 5. Get APK name for Release
-        id: get_apk_name
-        # Finds the specific filename of the generated APK
-        run: echo "APK_FILE=$(basename $(ls bin/*.apk))" >> $GITHUB_OUTPUT
-        
-      - name: 6. Create GitHub Release with APK
-        # Creates a draft release on GitHub for easy download
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+      - name: Create buildozer.spec file
+        run: |
+          cat << EOF > buildozer.spec
+          [app]
+          title = DoubtCure
+          package.name = doubtcure
+          package.domain = org.doubtcure
+          source.include_exts = py,kv,png,jpg,atlas
+
+          requirements = python3, kivy==2.3.1, kivymd==1.1.1, pillow, plyer, pytesseract, requests, sqlite3
+          android.permissions = INTERNET, CAMERA, RECORD_AUDIO, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
+
+          [buildozer]
+          log_level = 2
+          warn_on_root = 1
+          EOF
+
+      - name: Build APK with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
         with:
-          tag_name: release-${{ github.sha }}
-          name: Release ${{ github.ref_name }} Build
-          files: bin/${{ steps.get_apk_name.outputs.APK_FILE }}
-          draft: true
-          
+          command: buildozer android debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: DoubtCure-APK
+          path: bin/*.apk
