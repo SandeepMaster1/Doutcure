@@ -52,6 +52,7 @@ jobs:
           package.name = doubtcure
           package.domain = org.doubtcure
           version = 0.1
+          source.dir = .
           source.include_exts = py,kv,png,jpg,atlas
           source.main = Doubtly.py
 
