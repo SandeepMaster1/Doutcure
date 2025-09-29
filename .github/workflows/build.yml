@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -51,6 +51,7 @@ jobs:
           title = DoubtCure
           package.name = doubtcure
           package.domain = org.doubtcure
+          version = 0.1
           source.include_exts = py,kv,png,jpg,atlas
           source.main = Doubtly.py
 
