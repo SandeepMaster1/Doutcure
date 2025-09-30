@@ -20,32 +20,26 @@ jobs:
           pip install --upgrade pip
           pip install cython==0.29.36 buildozer==2.1.0
 
-      - name: Create buildozer.spec
-        run: |
-          cat > buildozer.spec << 'EOF'
-[app]
-title = DoubtCure
-package.name = doubtcure
-package.domain = org.doubtcure
-version = 0.1
-source.dir = .
-source.include_exts = py,kv,png,jpg,atlas
-source.main = Doubtly.py
+            - name: Create buildozer.spec
+              run: |
+                cat > buildozer.spec << 'EOF'
+          [app]
+          title = DoubtCure
+          package.name = doubtcure
+          package.domain = org.doubtcure
+          version = 0.1
+          source.dir = .
+          source.include_exts = py,kv,png,jpg,atlas
+          source.main = Doubtly.py
 
-requirements = kivy==2.3.1, kivymd==1.1.1, pillow, plyer, pytesseract, requests
-android.permissions = INTERNET, CAMERA, RECORD_AUDIO, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
+          requirements = kivy==2.3.1, kivymd==1.1.1, pillow, plyer, pytesseract, requests
+          android.permissions = INTERNET, CAMERA, RECORD_AUDIO, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+          [buildozer]
+          log_level = 2
+          warn_on_root = 1
 EOF
 
       - name: Build APK
         run: |
           buildozer -v android debug
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: DoubtCure-APK
-          path: bin/*.apk
